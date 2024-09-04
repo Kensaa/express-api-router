@@ -5,6 +5,23 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@kensaa/express-api-router@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@kensaa/express-api-router@workspace:."
+  dependencies:
+    "@types/express": "npm:^4.17.21"
+    "@types/jsonwebtoken": "npm:^9"
+    jsonwebtoken: "npm:^9.0.2"
+    typescript: "npm:^5.5.4"
+    zod: "npm:^3.23.8"
+  peerDependencies:
+    express: ^4.19.2
+  dependenciesMeta:
+    jsonwebtoken:
+      optional: true
+  languageName: unknown
+  linkType: soft
+
 "@types/body-parser@npm:*":
   version: 1.19.5
   resolution: "@types/body-parser@npm:1.19.5"
@@ -130,23 +147,6 @@ __metadata:
   checksum: 10c0/ebfbf19d4b8be938f4dd4a83b8788385da353d63307ede301a9252f9f7f88672e76f2191618fd8edfc2f24679236064176fab0b78131b161ee73daa37125408c
   languageName: node
   linkType: hard
-
-"express-api-router@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "express-api-router@workspace:."
-  dependencies:
-    "@types/express": "npm:^4.17.21"
-    "@types/jsonwebtoken": "npm:^9"
-    jsonwebtoken: "npm:^9.0.2"
-    typescript: "npm:^5.5.4"
-    zod: "npm:^3.23.8"
-  peerDependencies:
-    express: ^4.19.2
-  dependenciesMeta:
-    jsonwebtoken:
-      optional: true
-  languageName: unknown
-  linkType: soft
 
 "jsonwebtoken@npm:^9.0.2":
   version: 9.0.2
