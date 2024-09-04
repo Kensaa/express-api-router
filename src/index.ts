@@ -77,7 +77,7 @@ export type RouteHandler<
 );
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorMiddleware(
+function errorMiddleware(
   err: Error,
   req: Request,
   res: Response,
