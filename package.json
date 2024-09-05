@@ -1,8 +1,7 @@
 {
   "name": "@kensaa/express-api-router",
   "description": "",
-  "version": "1.0.3",
-  "main": "dist/index.js",
+  "version": "1.0.4",
   "author": "Kensa",
   "packageManager": "yarn@4.4.1",
   "repository": {
@@ -10,19 +9,18 @@
     "url": "git+https://github.com/Kensaa/express-api-router.git"
   },
   "license": "MIT",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsc --build",
     "publish": "yarn clean && yarn build && yarn npm publish --access public"
   },
-  "peerDependencies": {
-    "express": "^4.19.2"
-  },
   "optionalDependencies": {
     "jsonwebtoken": "^9.0.2"
   },
   "dependencies": {
+    "express": "^4.19.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {

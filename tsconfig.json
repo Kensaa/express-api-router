@@ -10,7 +10,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "module": "NodeNext",
+    "module": "CommonJS",
     "outDir": "dist",
     "sourceMap": true,
     "declaration": true,
