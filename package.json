@@ -1,7 +1,7 @@
 {
   "name": "@kensaa/express-api-router",
   "description": "",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": "Kensa",
   "packageManager": "yarn@4.4.1",
   "repository": {
@@ -11,6 +11,13 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsc --build",
