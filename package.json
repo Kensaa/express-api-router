@@ -3,7 +3,7 @@
   "description": "",
   "version": "1.0.7",
   "author": "Kensa",
-  "packageManager": "yarn@4.4.1",
+  "packageManager": "yarn@4.5.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kensaa/express-api-router.git"
@@ -21,7 +21,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsc --build",
-    "publish": "yarn clean && yarn build && yarn npm publish --access public"
+    "prepack": "yarn clean && yarn build"
   },
   "optionalDependencies": {
     "jsonwebtoken": "^9.0.2"
