@@ -53,25 +53,48 @@ export type RouteHandler<
   responseSchema: ResponseSchema;
 } & (
   | {
+      /**
+       * Does this route require authentification ?
+       */
       authed: true;
+      /**
+       *
+       * @param req The request object containing the infos and data about the request
+       * @param res The response object. This object is not meant to send a response (yo ucan do that by returning an object matching the responseSchema), but to set cookies or any metadata like headers. If for some reason you really need to send the response yourself (by using the response object), the handler return value will be ignored
+       * @param instances The instances object passed to the router
+       * @param userTokenData The data returned by the AuthHandler (the data contained in the token if you use the default jwt handler)
+       * @returns The request response
+       */
       handler: (
         req: Request<
           z.infer<QuerySchema>,
           z.infer<BodySchema>,
           z.infer<ParamSchema>
         >,
+        res: Response,
         instances: Instances,
         userTokenData: AuthedUserData
       ) => z.infer<ResponseSchema> | Promise<z.infer<ResponseSchema>>;
     }
   | {
+      /**
+       * Does this route require authentification ?
+       */
       authed: false;
+      /**
+       *
+       * @param req The request object containing the infos and data about the request
+       * @param res The response object. This object is not meant to send a response (yo ucan do that by returning an object matching the responseSchema), but to set cookies or any metadata like headers. If for some reason you really need to send the response yourself (by using the response object), the handler return value will be ignored
+       * @param instances The instances object passed to the router
+       * @returns The request response
+       */
       handler: (
         req: Request<
           z.infer<QuerySchema>,
           z.infer<BodySchema>,
           z.infer<ParamSchema>
         >,
+        res: Response,
         instances: Instances
       ) => z.infer<ResponseSchema> | Promise<z.infer<ResponseSchema>>;
     }
@@ -194,11 +217,12 @@ export class APIRouter<InstanceType, AuthedUserData> {
         if (routeHandler.authed) {
           handlerResult = routeHandler.handler(
             req,
+            res,
             this.instances,
             userTokenData!
           );
         } else {
-          handlerResult = routeHandler.handler(req, this.instances);
+          handlerResult = routeHandler.handler(req, res, this.instances);
         }
 
         const result =
@@ -207,7 +231,9 @@ export class APIRouter<InstanceType, AuthedUserData> {
             : handlerResult;
 
         const parsedResult = routeHandler.responseSchema.parse(result);
-        res.status(200).json(parsedResult);
+        if (!res.writableEnded) {
+          res.status(200).json(parsedResult);
+        }
       } catch (err) {
         next(err);
       }
