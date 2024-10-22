@@ -6,6 +6,7 @@ import type {
   Response as ExpressResponse,
   NextFunction as ExpressNextFunction,
 } from "express";
+import type { IncomingHttpHeaders } from "http";
 import jwt from "jsonwebtoken";
 
 type HTTPMethod = "get" | "post" | "put" | "delete";
@@ -232,24 +233,80 @@ export class HTTPError extends Error {
   }
 }
 
+export type JWTAuthHandlerOptions = {
+  /**
+   * The secret used to verify the json web token.
+   */
+  auth_secret: string;
+} & (
+  | {
+      /**
+       * The source of the json web token :
+       * "header" will try to parse the token in a Bearer Auth format
+       * "cookie" will try to parse the token from a cookie
+       */
+      tokenSource: "header";
+      /**
+       * The header in which the token is stored. @default authorization
+       */
+      headerName?: keyof IncomingHttpHeaders;
+    }
+  | {
+      /**
+       * The source of the json web token :
+       * "header" will try to parse the token in a Bearer Auth format
+       * "cookie" will try to parse the token from a cookie
+       */
+      tokenSource: "cookie";
+
+      /**
+       * The cookie in which the token is stored. @default auth_token
+       */
+      cookieName?: string;
+    }
+);
+
+/**
+ * Create a default Auth Handler using the jsonwebtoken library
+ * @param options the options ({@link JWTAuthHandlerOptions}) object
+ * @returns the created {@link AuthHandler}
+ */
 export function createJWTAuthHandler<AuthedUserData>(
-  AUTH_SECRET: string
+  options: JWTAuthHandlerOptions
 ): AuthHandler<AuthedUserData> {
   if (!jwt) throw new Error("jwt not found");
   return (req) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-      const token = authHeader.split(" ")[1];
-      if (!token) throw new HTTPError(401, "no token provided");
+    let token: string;
+    if (options.tokenSource === "header") {
+      let headerName = options.headerName;
+      if (!headerName) {
+        headerName = "authorization";
+      }
+      let header = req.headers[headerName];
+      if (!header) throw new HTTPError(401, "no token provided");
+      if (Array.isArray(header)) throw new HTTPError(401, "invalid token");
 
-      return new Promise((res, rej) => {
-        jwt.verify(token, AUTH_SECRET, (err, user) => {
-          if (err) rej(new HTTPError(401, "invalid token"));
-          res(user as AuthedUserData);
-        });
-      });
-    } else {
-      throw new HTTPError(401, "no token provided");
+      let headerSplit = header.split(" ")[1];
+      if (!headerSplit) throw new HTTPError(401, "invalid token");
+      token = headerSplit;
+    } else if (options.tokenSource === "cookie") {
+      let cookieName = options.cookieName;
+      if (!cookieName) {
+        cookieName = "auth_token";
+      }
+      if (!req.cookies)
+        throw new Error(
+          "the cookies field does not exist on the request, probably because you didn't add the cookie-parser middleware"
+        );
+      let cookie: string | undefined = req.cookies[cookieName];
+      if (!cookie) throw new HTTPError(401, "no token provided");
+      token = cookie;
     }
+    return new Promise((resolve, reject) => {
+      jwt.verify(token, options.auth_secret, (err, user) => {
+        if (err) reject(new HTTPError(401, "invalid token"));
+        resolve(user as AuthedUserData);
+      });
+    });
   };
 }
