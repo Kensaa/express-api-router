@@ -88,6 +88,8 @@ function errorMiddleware(
   } else if (err instanceof z.ZodError) {
     res.status(400).json(err.errors);
   } else {
+    console.error("An error was caught by the router : ");
+    console.error(err.stack);
     res.status(500).send(err.message);
   }
 }
