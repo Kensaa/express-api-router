@@ -84,7 +84,7 @@ export type RouteHandler<
       /**
        *
        * @param req The request object containing the infos and data about the request
-       * @param res The response object. This object is not meant to send a response (yo ucan do that by returning an object matching the responseSchema), but to set cookies or any metadata like headers. If for some reason you really need to send the response yourself (by using the response object), the handler return value will be ignored
+       * @param res The response object. This object is not meant to send a response (you can do that by returning an object matching the responseSchema), but to set cookies or any metadata like headers. If for some reason you really need to send the response yourself (by using the response object), the handler return value will be ignored
        * @param instances The instances object passed to the router
        * @returns The request response
        */

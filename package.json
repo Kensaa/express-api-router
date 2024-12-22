@@ -1,7 +1,7 @@
 {
   "name": "@kensaa/express-api-router",
   "description": "",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": "Kensa",
   "packageManager": "yarn@4.5.0",
   "repository": {
