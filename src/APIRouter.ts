@@ -146,14 +146,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
       InstanceType,
       AuthedUserData
     >
-  ): RouteHandler<
-    BodySchema,
-    QuerySchema,
-    ParamSchema,
-    ResponseSchema,
-    InstanceType,
-    AuthedUserData
-  > {
+  ) {
     return routeHandler;
   }
 
@@ -180,7 +173,6 @@ export class APIRouter<InstanceType, AuthedUserData> {
       next: NextFunction
     ) => void)[] = [];
 
-    let userTokenData: AuthedUserData | undefined;
     // Auth middleware
     if (routeHandler.authed) {
       if (this.authHandler === undefined) {
@@ -192,7 +184,8 @@ export class APIRouter<InstanceType, AuthedUserData> {
       handlers.push(async (req, res, next) => {
         try {
           const authResult = this.authHandler!(req);
-          userTokenData =
+          res.locals.userTokenData =
+            //   (req as any).userTokenData =
             authResult instanceof Promise ? await authResult : authResult;
           next();
         } catch (err) {
@@ -219,7 +212,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
             req,
             res,
             this.instances,
-            userTokenData!
+            res.locals.userTokenData as AuthedUserData
           );
         } else {
           handlerResult = routeHandler.handler(req, res, this.instances);
