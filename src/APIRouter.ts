@@ -12,14 +12,19 @@ import type { ParsedQs } from "qs";
 
 type HTTPMethod = "get" | "post" | "put" | "delete";
 
+type BodyType = Record<string, unknown> | undefined;
+type QueryType = ParsedQs;
+type ParamType = Record<string, string>;
+type ResponseType = any;
+
 export interface Request<
-  QueryType extends ParsedQs = ParsedQs,
-  BodyType = Record<string, unknown>,
-  ParamType extends Record<string, string> = Record<string, string>
+  Q extends QueryType = QueryType,
+  B = Record<string, unknown> | undefined,
+  P extends Record<string, string> = Record<string, string>
 > extends ExpressRequest {
-  query: QueryType;
-  body: BodyType;
-  params: ParamType;
+  query: Q;
+  body: B;
+  params: P;
 }
 
 export type Response<ResponseType = any> = ExpressResponse<ResponseType>;
@@ -36,10 +41,10 @@ export type AuthHandler<AuthedUserData> = (
   req: Request
 ) => AuthedUserData | Promise<AuthedUserData>;
 
-type RouteHandlerBodySchema = ZodType<Record<string, unknown>>;
-type RouteHandlerQuerySchema = ZodType<ParsedQs>;
-type RouteHandlerParamSchema = ZodType<Record<string, string>>;
-type RouteHandlerResponseSchema = ZodType<any>;
+type RouteHandlerBodySchema = ZodType<BodyType>;
+type RouteHandlerQuerySchema = ZodType<QueryType>;
+type RouteHandlerParamSchema = ZodType<ParamType>;
+type RouteHandlerResponseSchema = ZodType<ResponseType>;
 export type RouteHandler<
   BodySchema extends RouteHandlerBodySchema,
   QuerySchema extends RouteHandlerQuerySchema,
