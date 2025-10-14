@@ -201,9 +201,15 @@ export class APIRouter<InstanceType, AuthedUserData> {
 
     // Input validation
     handlers.push((req, res, next) => {
-      req.query = routeHandler.querySchema.parse(req.query);
-      req.body = routeHandler.bodySchema.parse(req.body);
-      req.params = routeHandler.paramsSchema.parse(req.params);
+      Object.defineProperty(req, "query", {
+        value: routeHandler.querySchema.parse(req.query),
+      });
+      Object.defineProperty(req, "body", {
+        value: routeHandler.bodySchema.parse(req.body),
+      });
+      Object.defineProperty(req, "params", {
+        value: routeHandler.paramsSchema.parse(req.params),
+      });
       next();
     });
 
