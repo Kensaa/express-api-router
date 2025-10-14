@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
+import { z, ZodAny, ZodType } from "zod";
 import type {
   Router as RouterType,
   Request as ExpressRequest,
@@ -8,15 +8,12 @@ import type {
 } from "express";
 import type { IncomingHttpHeaders } from "http";
 import jwt from "jsonwebtoken";
+import type { ParsedQs } from "qs";
 
 type HTTPMethod = "get" | "post" | "put" | "delete";
-interface Queries {
-  [key: string]: undefined | string | string[] | Queries | Queries[];
-}
-type ZAny = z.ZodTypeAny;
 
 export interface Request<
-  QueryType extends Queries = Queries,
+  QueryType extends ParsedQs = ParsedQs,
   BodyType = Record<string, unknown>,
   ParamType extends Record<string, string> = Record<string, string>
 > extends ExpressRequest {
@@ -25,7 +22,7 @@ export interface Request<
   params: ParamType;
 }
 
-export type Response = ExpressResponse;
+export type Response<ResponseType = any> = ExpressResponse<ResponseType>;
 export type NextFunction = ExpressNextFunction;
 
 /**
@@ -39,11 +36,15 @@ export type AuthHandler<AuthedUserData> = (
   req: Request
 ) => AuthedUserData | Promise<AuthedUserData>;
 
+type RouteHandlerBodySchema = ZodType<Record<string, unknown>>;
+type RouteHandlerQuerySchema = ZodType<ParsedQs>;
+type RouteHandlerParamSchema = ZodType<Record<string, string>>;
+type RouteHandlerResponseSchema = ZodType<any>;
 export type RouteHandler<
-  BodySchema extends ZAny,
-  QuerySchema extends ZAny,
-  ParamSchema extends ZAny,
-  ResponseSchema extends ZAny,
+  BodySchema extends RouteHandlerBodySchema,
+  QuerySchema extends RouteHandlerQuerySchema,
+  ParamSchema extends RouteHandlerParamSchema,
+  ResponseSchema extends RouteHandlerBodySchema,
   Instances,
   AuthedUserData
 > = {
@@ -67,14 +68,14 @@ export type RouteHandler<
        */
       handler: (
         req: Request<
-          z.infer<QuerySchema>,
-          z.infer<BodySchema>,
-          z.infer<ParamSchema>
+          z.output<QuerySchema>,
+          z.output<BodySchema>,
+          z.output<ParamSchema>
         >,
-        res: Response,
+        res: Response<z.output<ResponseSchema>>,
         instances: Instances,
         userTokenData: AuthedUserData
-      ) => z.infer<ResponseSchema> | Promise<z.infer<ResponseSchema>>;
+      ) => z.output<ResponseSchema> | Promise<z.output<ResponseSchema>>;
     }
   | {
       /**
@@ -90,13 +91,13 @@ export type RouteHandler<
        */
       handler: (
         req: Request<
-          z.infer<QuerySchema>,
-          z.infer<BodySchema>,
-          z.infer<ParamSchema>
+          z.output<QuerySchema>,
+          z.output<BodySchema>,
+          z.output<ParamSchema>
         >,
-        res: Response,
+        res: Response<z.output<ResponseSchema>>,
         instances: Instances
-      ) => z.infer<ResponseSchema> | Promise<z.infer<ResponseSchema>>;
+      ) => z.output<ResponseSchema> | Promise<z.output<ResponseSchema>>;
     }
 );
 
@@ -104,13 +105,13 @@ export type RouteHandler<
 function errorMiddleware(
   err: Error,
   req: Request,
-  res: Response,
+  res: Response<any>,
   next: NextFunction
 ) {
   if (err instanceof HTTPError) {
     err.sendError(res);
   } else if (err instanceof z.ZodError) {
-    res.status(400).json(err.errors);
+    res.status(400).json(err.issues);
   } else {
     console.error("An error was caught by the router : ");
     console.error(err.stack);
@@ -133,10 +134,10 @@ export class APIRouter<InstanceType, AuthedUserData> {
   }
 
   createRouteHandler<
-    BodySchema extends ZAny,
-    QuerySchema extends ZAny,
-    ParamSchema extends ZAny,
-    ResponseSchema extends ZAny
+    BodySchema extends RouteHandlerBodySchema,
+    QuerySchema extends RouteHandlerQuerySchema,
+    ParamSchema extends RouteHandlerParamSchema,
+    ResponseSchema extends RouteHandlerResponseSchema
   >(
     routeHandler: RouteHandler<
       BodySchema,
@@ -151,10 +152,10 @@ export class APIRouter<InstanceType, AuthedUserData> {
   }
 
   registerRoute<
-    BodySchema extends ZAny,
-    QuerySchema extends ZAny,
-    ParamSchema extends ZAny,
-    ResponseSchema extends ZAny
+    BodySchema extends RouteHandlerBodySchema,
+    QuerySchema extends RouteHandlerQuerySchema,
+    ParamSchema extends RouteHandlerParamSchema,
+    ResponseSchema extends RouteHandlerResponseSchema
   >(
     method: HTTPMethod,
     path: string,
@@ -168,8 +169,12 @@ export class APIRouter<InstanceType, AuthedUserData> {
     >
   ) {
     const handlers: ((
-      req: Request,
-      res: Response,
+      req: Request<
+        z.output<QuerySchema>,
+        z.output<BodySchema>,
+        z.output<ParamSchema>
+      >,
+      res: Response<z.output<ResponseSchema>>,
       next: NextFunction
     ) => void)[] = [];
 
