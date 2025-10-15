@@ -10,7 +10,14 @@ import type { IncomingHttpHeaders } from "http";
 import jwt from "jsonwebtoken";
 import type { ParsedQs } from "qs";
 
-type HTTPMethod = "get" | "post" | "put" | "delete";
+type HTTPMethod =
+  | "get"
+  | "post"
+  | "put"
+  | "delete"
+  | "patch"
+  | "options"
+  | "head";
 
 type BodyType = Record<string, unknown> | undefined;
 type QueryType = ParsedQs;
