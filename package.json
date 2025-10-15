@@ -1,7 +1,7 @@
 {
   "name": "@kensaa/express-api-router",
   "description": "",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "author": "Kensa",
   "packageManager": "yarn@4.5.0",
   "repository": {
@@ -25,7 +25,8 @@
   },
   "optionalDependencies": {
     "cookie-parser": "^1.4.7",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2"
   },
   "dependencies": {
     "express": "^5.1.0",
@@ -35,6 +36,7 @@
     "@types/cookie-parser": "^1",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9",
+    "@types/multer": "^2",
     "@types/node": "^22.7.8",
     "typescript": "^5.5.4"
   },

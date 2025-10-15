@@ -5,9 +5,11 @@ import type {
   Request as ExpressRequest,
   Response as ExpressResponse,
   NextFunction as ExpressNextFunction,
+  RequestHandler as ExpressRequestHandler,
 } from "express";
 import type { IncomingHttpHeaders } from "http";
 import jwt from "jsonwebtoken";
+import multer from "multer";
 import type { ParsedQs } from "qs";
 
 type HTTPMethod =
@@ -24,14 +26,27 @@ type QueryType = ParsedQs;
 type ParamType = Record<string, string>;
 type ResponseType = any;
 
+export type FileUploadConfig =
+  | { type: "none" }
+  | { type: "single"; fieldName: string }
+  | { type: "array"; fieldName: string; maxCount?: number }
+  | { type: "fields"; fields: Record<string, number> };
+
 export interface Request<
   Q extends QueryType = QueryType,
   B = Record<string, unknown> | undefined,
-  P extends Record<string, string> = Record<string, string>
+  P extends Record<string, string> = Record<string, string>,
+  U extends FileUploadConfig = { type: "none" }
 > extends ExpressRequest {
   query: Q;
   body: B;
   params: P;
+  file: U extends { type: "single" } ? Express.Multer.File : undefined;
+  files: U extends { type: "array" }
+    ? Express.Multer.File[]
+    : U extends { type: "fields" }
+    ? Record<string, Express.Multer.File[]>
+    : undefined;
 }
 
 export type Response<ResponseType = any> = ExpressResponse<ResponseType>;
@@ -45,25 +60,28 @@ export type NextFunction = ExpressNextFunction;
  * @throws Throws {@link HTTPError} if the user is not authenticated
  */
 export type AuthHandler<AuthedUserData> = (
-  req: Request
+  req: Request<any, any, any, any>
 ) => AuthedUserData | Promise<AuthedUserData>;
 
 type RouteHandlerBodySchema = ZodType<BodyType>;
 type RouteHandlerQuerySchema = ZodType<QueryType>;
 type RouteHandlerParamSchema = ZodType<ParamType>;
 type RouteHandlerResponseSchema = ZodType<ResponseType>;
+
 export type RouteHandler<
   BodySchema extends RouteHandlerBodySchema,
   QuerySchema extends RouteHandlerQuerySchema,
   ParamSchema extends RouteHandlerParamSchema,
   ResponseSchema extends RouteHandlerBodySchema,
   Instances,
-  AuthedUserData
+  AuthedUserData,
+  FileUpload extends FileUploadConfig = { type: "none" }
 > = {
   bodySchema: BodySchema;
   querySchema: QuerySchema;
   paramsSchema: ParamSchema;
   responseSchema: ResponseSchema;
+  upload?: FileUpload;
 } & (
   | {
       /**
@@ -82,7 +100,8 @@ export type RouteHandler<
         req: Request<
           z.output<QuerySchema>,
           z.output<BodySchema>,
-          z.output<ParamSchema>
+          z.output<ParamSchema>,
+          FileUpload
         >,
         res: Response<z.output<ResponseSchema>>,
         instances: Instances,
@@ -105,7 +124,8 @@ export type RouteHandler<
         req: Request<
           z.output<QuerySchema>,
           z.output<BodySchema>,
-          z.output<ParamSchema>
+          z.output<ParamSchema>,
+          FileUpload
         >,
         res: Response<z.output<ResponseSchema>>,
         instances: Instances
@@ -116,7 +136,7 @@ export type RouteHandler<
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function errorMiddleware(
   err: Error,
-  req: Request,
+  req: ExpressRequest,
   res: Response<any>,
   next: NextFunction
 ) {
@@ -149,7 +169,8 @@ export class APIRouter<InstanceType, AuthedUserData> {
     BodySchema extends RouteHandlerBodySchema,
     QuerySchema extends RouteHandlerQuerySchema,
     ParamSchema extends RouteHandlerParamSchema,
-    ResponseSchema extends RouteHandlerResponseSchema
+    ResponseSchema extends RouteHandlerResponseSchema,
+    FileUpload extends FileUploadConfig = { type: "none" }
   >(
     routeHandler: RouteHandler<
       BodySchema,
@@ -157,7 +178,8 @@ export class APIRouter<InstanceType, AuthedUserData> {
       ParamSchema,
       ResponseSchema,
       InstanceType,
-      AuthedUserData
+      AuthedUserData,
+      FileUpload
     >
   ) {
     return routeHandler;
@@ -167,7 +189,8 @@ export class APIRouter<InstanceType, AuthedUserData> {
     BodySchema extends RouteHandlerBodySchema,
     QuerySchema extends RouteHandlerQuerySchema,
     ParamSchema extends RouteHandlerParamSchema,
-    ResponseSchema extends RouteHandlerResponseSchema
+    ResponseSchema extends RouteHandlerResponseSchema,
+    FileUpload extends FileUploadConfig = { type: "none" }
   >(
     method: HTTPMethod,
     path: string,
@@ -177,14 +200,16 @@ export class APIRouter<InstanceType, AuthedUserData> {
       ParamSchema,
       ResponseSchema,
       InstanceType,
-      AuthedUserData
+      AuthedUserData,
+      FileUpload
     >
   ) {
     const handlers: ((
       req: Request<
         z.output<QuerySchema>,
         z.output<BodySchema>,
-        z.output<ParamSchema>
+        z.output<ParamSchema>,
+        FileUpload
       >,
       res: Response<z.output<ResponseSchema>>,
       next: NextFunction
@@ -209,6 +234,28 @@ export class APIRouter<InstanceType, AuthedUserData> {
           next(err);
         }
       });
+    }
+
+    // File upload
+    if (routeHandler.upload) {
+      if (multer === undefined)
+        throw new Error(
+          'Could not find the multer middleware. To use file upload, you need to add the "multer" package'
+        );
+      const upload = multer({ storage: multer.memoryStorage() });
+      const config = routeHandler.upload;
+
+      if (config.type === "single")
+        handlers.push(upload.single(config.fieldName));
+      else if (config.type === "array")
+        handlers.push(upload.array(config.fieldName, config.maxCount));
+      else if (config.type === "fields") {
+        const fields = Object.entries(config.fields).map(([name, len]) => ({
+          name,
+          maxCount: len,
+        }));
+        handlers.push(upload.fields(fields));
+      }
     }
 
     // Input validation
@@ -255,7 +302,19 @@ export class APIRouter<InstanceType, AuthedUserData> {
       }
     });
 
-    this.router[method](path, ...handlers, errorMiddleware);
+    this.router[method](
+      path,
+      ...(handlers as ExpressRequestHandler<
+        z.output<ParamSchema>,
+        z.output<ResponseSchema>,
+        z.output<BodySchema>,
+        z.output<QuerySchema>
+      >[]),
+      errorMiddleware
+    );
+    // z.output<QuerySchema>,
+    // z.output<BodySchema>,
+    // z.output<ParamSchema>,
   }
 
   getRouter() {
