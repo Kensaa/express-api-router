@@ -21,7 +21,7 @@ type HTTPMethod =
   | "options"
   | "head";
 
-type BodyType = Record<string, unknown> | undefined;
+type BodyType = Record<string, unknown> | unknown[] | undefined;
 type QueryType = ParsedQs;
 type ParamType = Record<string, string>;
 type ResponseType = any;
