@@ -26,7 +26,7 @@
   "optionalDependencies": {
     "cookie-parser": "^1.4.7",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.2"
+    "multer": "^2.1.1"
   },
   "dependencies": {
     "express": "^5.1.0",
