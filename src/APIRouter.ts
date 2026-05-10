@@ -10,6 +10,7 @@ import type {
 import type { IncomingHttpHeaders } from "http";
 import jwt from "jsonwebtoken";
 import multer from "multer";
+import type { StorageEngine } from "multer";
 import type { ParsedQs } from "qs";
 
 type HTTPMethod =
@@ -36,7 +37,7 @@ export interface Request<
   Q extends QueryType = QueryType,
   B = Record<string, unknown> | undefined,
   P extends Record<string, string> = Record<string, string>,
-  U extends FileUploadConfig = { type: "none" }
+  U extends FileUploadConfig = { type: "none" },
 > extends ExpressRequest {
   query: Q;
   body: B;
@@ -45,8 +46,8 @@ export interface Request<
   files: U extends { type: "array" }
     ? Express.Multer.File[]
     : U extends { type: "fields" }
-    ? Record<string, Express.Multer.File[]>
-    : undefined;
+      ? Record<string, Express.Multer.File[]>
+      : undefined;
 }
 
 export type Response<ResponseType = any> = ExpressResponse<ResponseType>;
@@ -60,7 +61,7 @@ export type NextFunction = ExpressNextFunction;
  * @throws Throws {@link HTTPError} if the user is not authenticated
  */
 export type AuthHandler<AuthedUserData> = (
-  req: Request<any, any, any, any>
+  req: Request<any, any, any, any>,
 ) => AuthedUserData | Promise<AuthedUserData>;
 
 type RouteHandlerBodySchema = ZodType<BodyType>;
@@ -75,13 +76,32 @@ export type RouteHandler<
   ResponseSchema extends RouteHandlerBodySchema,
   Instances,
   AuthedUserData,
-  FileUpload extends FileUploadConfig = { type: "none" }
+  FileUpload extends FileUploadConfig = { type: "none" },
 > = {
+  /**
+   * The type of the zod schema of the body
+   */
   bodySchema: BodySchema;
+  /**
+   * The type of the zod schema of the query
+   */
   querySchema: QuerySchema;
+  /**
+   * The type of the zod schema of the params
+   */
   paramsSchema: ParamSchema;
+  /**
+   * The type of the zod schema of the response
+   */
   responseSchema: ResponseSchema;
+  /**
+   * An object indicating if a given route accepts the reception of files
+   */
   upload?: FileUpload;
+  /**
+   * The multer storage engine to be used in the case that the route accepts files, defaults to multer.memoryStorage() if upload is set, but this is not specified
+   */
+  storage?: FileUpload extends { type: "none" } ? never : StorageEngine;
 } & (
   | {
       /**
@@ -105,7 +125,7 @@ export type RouteHandler<
         >,
         res: Response<z.output<ResponseSchema>>,
         instances: Instances,
-        userTokenData: AuthedUserData
+        userTokenData: AuthedUserData,
       ) => z.output<ResponseSchema> | Promise<z.output<ResponseSchema>>;
     }
   | {
@@ -128,7 +148,7 @@ export type RouteHandler<
           FileUpload
         >,
         res: Response<z.output<ResponseSchema>>,
-        instances: Instances
+        instances: Instances,
       ) => z.output<ResponseSchema> | Promise<z.output<ResponseSchema>>;
     }
 );
@@ -138,7 +158,7 @@ function errorMiddleware(
   err: Error,
   req: ExpressRequest,
   res: Response<any>,
-  next: NextFunction
+  next: NextFunction,
 ) {
   if (err instanceof HTTPError) {
     err.sendError(res);
@@ -158,7 +178,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
 
   constructor(
     instances: InstanceType,
-    authHandler?: AuthHandler<AuthedUserData>
+    authHandler?: AuthHandler<AuthedUserData>,
   ) {
     this.router = Router();
     this.instances = instances;
@@ -170,7 +190,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
     QuerySchema extends RouteHandlerQuerySchema,
     ParamSchema extends RouteHandlerParamSchema,
     ResponseSchema extends RouteHandlerResponseSchema,
-    FileUpload extends FileUploadConfig = { type: "none" }
+    FileUpload extends FileUploadConfig = { type: "none" },
   >(
     routeHandler: RouteHandler<
       BodySchema,
@@ -180,7 +200,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
       InstanceType,
       AuthedUserData,
       FileUpload
-    >
+    >,
   ) {
     return routeHandler;
   }
@@ -190,7 +210,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
     QuerySchema extends RouteHandlerQuerySchema,
     ParamSchema extends RouteHandlerParamSchema,
     ResponseSchema extends RouteHandlerResponseSchema,
-    FileUpload extends FileUploadConfig = { type: "none" }
+    FileUpload extends FileUploadConfig = { type: "none" },
   >(
     method: HTTPMethod,
     path: string,
@@ -202,7 +222,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
       InstanceType,
       AuthedUserData,
       FileUpload
-    >
+    >,
   ) {
     const handlers: ((
       req: Request<
@@ -212,14 +232,14 @@ export class APIRouter<InstanceType, AuthedUserData> {
         FileUpload
       >,
       res: Response<z.output<ResponseSchema>>,
-      next: NextFunction
+      next: NextFunction,
     ) => void)[] = [];
 
     // Auth middleware
     if (routeHandler.authed) {
       if (this.authHandler === undefined) {
         throw new Error(
-          `Route handler for ${path} requires authentication, but no auth handler was provided`
+          `Route handler for ${path} requires authentication, but no auth handler was provided`,
         );
       }
 
@@ -240,9 +260,11 @@ export class APIRouter<InstanceType, AuthedUserData> {
     if (routeHandler.upload) {
       if (multer === undefined)
         throw new Error(
-          'Could not find the multer middleware. To use file upload, you need to add the "multer" package'
+          'Could not find the multer middleware. To use file upload, you need to add the "multer" package',
         );
-      const upload = multer({ storage: multer.memoryStorage() });
+      const upload = multer({
+        storage: routeHandler.storage ?? multer.memoryStorage(),
+      });
       const config = routeHandler.upload;
 
       if (config.type === "single")
@@ -282,7 +304,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
             req,
             res,
             this.instances,
-            res.locals.userTokenData as AuthedUserData
+            res.locals.userTokenData as AuthedUserData,
           );
         } else {
           handlerResult = routeHandler.handler(req, res, this.instances);
@@ -310,7 +332,7 @@ export class APIRouter<InstanceType, AuthedUserData> {
         z.output<BodySchema>,
         z.output<QuerySchema>
       >[]),
-      errorMiddleware
+      errorMiddleware,
     );
     // z.output<QuerySchema>,
     // z.output<BodySchema>,
@@ -373,7 +395,7 @@ export type JWTAuthHandlerOptions = {
  * @returns the created {@link AuthHandler}
  */
 export function createJWTAuthHandler<AuthedUserData>(
-  options: JWTAuthHandlerOptions
+  options: JWTAuthHandlerOptions,
 ): AuthHandler<AuthedUserData> {
   if (!jwt) throw new Error("jwt not found");
   return (req) => {
@@ -397,7 +419,7 @@ export function createJWTAuthHandler<AuthedUserData>(
       }
       if (!req.cookies)
         throw new Error(
-          "the cookies field does not exist on the request, probably because you didn't add the cookie-parser middleware"
+          "the cookies field does not exist on the request, probably because you didn't add the cookie-parser middleware",
         );
       let cookie: string | undefined = req.cookies[cookieName];
       if (!cookie) throw new HTTPError(401, "no token provided");
